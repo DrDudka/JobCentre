@@ -1,12 +1,8 @@
 ﻿using Npgsql;
 using System;
 using System.Collections.Generic;
-using System.ComponentModel;
 using System.Data;
-using System.Drawing;
 using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 using System.Windows.Forms;
 
 namespace УП_PR8.Forms
@@ -32,7 +28,7 @@ namespace УП_PR8.Forms
                 try
                 {
                     conn.Open();
-                    string query = @"SELECT * FROM applicants ORDER BY a.fill_date";
+                    string query = @"SELECT * FROM applicants ORDER BY fill_date";
 
                     using (NpgsqlCommand command = new NpgsqlCommand(query, conn))
                     {
@@ -65,9 +61,9 @@ namespace УП_PR8.Forms
             dataGridApplicants.Columns["position"].HeaderText = "Должность";
             dataGridApplicants.Columns["education"].HeaderText = "Образование";
             dataGridApplicants.Columns["qualification"].HeaderText = "Квалификация";
-            dataGridApplicants.Columns["education"].HeaderText = "Образование";
+            dataGridApplicants.Columns["experience"].HeaderText = "Опыт работы";
             dataGridApplicants.Columns["desired_salary"].HeaderText = "Предполагаемая з/п";
-            dataGridApplicants.Columns["other_info"].HeaderText = "Предполагаемая з/п";
+            dataGridApplicants.Columns["other_info"].HeaderText = "Другая информация";
             dataGridApplicants.Columns["fill_date"].HeaderText = "Дата заполнения";
         }
 
@@ -77,15 +73,17 @@ namespace УП_PR8.Forms
             {
                 DataGridViewRow row = dataGridApplicants.SelectedRows[0];
 
-                textBoxFio.Text = row.Cells["fio"].Value != DBNull.Value ? row.Cells["fio"].Value.ToString() : string.Empty;
+                textBoxFio.Text = row.Cells["applicant_name"].Value != DBNull.Value ? row.Cells["applicant_name"].Value.ToString() : string.Empty;
                 dateTimePickerBirthDate.Value = row.Cells["birth_date"].Value != DBNull.Value
                     ? Convert.ToDateTime(row.Cells["birth_date"].Value)
                     : DateTime.Now;
-                comboBoxGender.Text = row.Cells["gender"].Value != DBNull.Value ? row.Cells["gender"].Value.ToString() : string.Empty;
+                textBoxGender.Text = row.Cells["gender"].Value != DBNull.Value ? row.Cells["gender"].Value.ToString() : string.Empty;
                 textBoxPosition.Text = row.Cells["position"].Value != DBNull.Value ? row.Cells["position"].Value.ToString() : string.Empty;
                 textBoxEducation.Text = row.Cells["education"].Value != DBNull.Value ? row.Cells["education"].Value.ToString() : string.Empty;
                 textBoxQualification.Text = row.Cells["qualification"].Value != DBNull.Value ? row.Cells["qualification"].Value.ToString() : string.Empty;
+                textBoxExperience.Text = row.Cells["experience"].Value != DBNull.Value ? row.Cells["experience"].Value.ToString() : string.Empty;
                 textBoxSalary.Text = row.Cells["desired_salary"].Value != DBNull.Value ? row.Cells["desired_salary"].Value.ToString() : string.Empty;
+                textBoxOtherInfo.Text = row.Cells["other_info"].Value != DBNull.Value ? row.Cells["other_info"].Value.ToString() : string.Empty;
                 dateTimePickerFillDate.Value = row.Cells["fill_date"].Value != DBNull.Value
                     ? Convert.ToDateTime(row.Cells["fill_date"].Value)
                     : DateTime.Now;
@@ -122,7 +120,9 @@ namespace УП_PR8.Forms
                                 position = @Position,
                                 education = @Education,
                                 qualification = @Qualification,
+                                experience = @Experience,
                                 desired_salary = @Salary,
+                                other_info = @OtherInfo,
                                 fill_date = @FillDate
                             WHERE applicant_id = @ApplicantId";
 
@@ -131,11 +131,13 @@ namespace УП_PR8.Forms
                             command.Parameters.AddWithValue("@ApplicantId", selectedApplicantId);
                             command.Parameters.AddWithValue("@Fio", string.IsNullOrWhiteSpace(textBoxFio.Text) ? (object)DBNull.Value : textBoxFio.Text);
                             command.Parameters.AddWithValue("@BirthDate", dateTimePickerBirthDate.Value);
-                            command.Parameters.AddWithValue("@Gender", string.IsNullOrWhiteSpace(comboBoxGender.Text) ? (object)DBNull.Value : comboBoxGender.Text);
+                            command.Parameters.AddWithValue("@Gender", string.IsNullOrWhiteSpace(textBoxGender.Text) ? (object)DBNull.Value : textBoxGender.Text);
                             command.Parameters.AddWithValue("@Position", string.IsNullOrWhiteSpace(textBoxPosition.Text) ? (object)DBNull.Value : textBoxPosition.Text);
                             command.Parameters.AddWithValue("@Education", string.IsNullOrWhiteSpace(textBoxEducation.Text) ? (object)DBNull.Value : textBoxEducation.Text);
                             command.Parameters.AddWithValue("@Qualification", string.IsNullOrWhiteSpace(textBoxQualification.Text) ? (object)DBNull.Value : textBoxQualification.Text);
+                            command.Parameters.AddWithValue("@Experience", string.IsNullOrWhiteSpace(textBoxExperience.Text) ? (object)DBNull.Value : Convert.ToInt32(textBoxExperience.Text));
                             command.Parameters.AddWithValue("@Salary", string.IsNullOrWhiteSpace(textBoxSalary.Text) ? (object)DBNull.Value : Convert.ToInt32(textBoxSalary.Text));
+                            command.Parameters.AddWithValue("@OtherInfo", string.IsNullOrWhiteSpace(textBoxOtherInfo.Text) ? (object)DBNull.Value : (textBoxOtherInfo.Text));
                             command.Parameters.AddWithValue("@FillDate", dateTimePickerFillDate.Value);
 
                             int rowsAffected = command.ExecuteNonQuery();
@@ -153,46 +155,13 @@ namespace УП_PR8.Forms
                     MessageBox.Show($"Ошибка: {ex.Message}", "Ошибка");
                 }
             }
-            else
-            {
-                try
-                {
-                    using (var conn = new NpgsqlConnection(connectionString))
-                    {
-                        conn.Open();
-
-                        string insertQuery = @"
-                            INSERT INTO applicants (applicant_name, birth_date, gender, position, 
-                                education, qualification, desired_salary, address, phone, fill_date)
-                            VALUES (@Fio, @BirthDate, @Gender, @Position, @Education, @Qualification, 
-                                @Salary, @Address, @Phone, @FillDate) RETURNING applicant_id";
-                        int newApplicantId;
-                        using (var cmd = new NpgsqlCommand(insertQuery, conn))
-                        {
-                            cmd.Parameters.AddWithValue("@Fio", string.IsNullOrWhiteSpace(textBoxFio.Text) ? (object)DBNull.Value : textBoxFio.Text);
-                            cmd.Parameters.AddWithValue("@BirthDate", dateTimePickerBirthDate.Value);
-                            cmd.Parameters.AddWithValue("@Gender", string.IsNullOrWhiteSpace(comboBoxGender.Text) ? (object)DBNull.Value : comboBoxGender.Text);
-                            cmd.Parameters.AddWithValue("@Position", string.IsNullOrWhiteSpace(textBoxPosition.Text) ? (object)DBNull.Value : textBoxPosition.Text);
-                            cmd.Parameters.AddWithValue("@Education", string.IsNullOrWhiteSpace(textBoxEducation.Text) ? (object)DBNull.Value : textBoxEducation.Text);
-                            cmd.Parameters.AddWithValue("@Qualification", string.IsNullOrWhiteSpace(textBoxQualification.Text) ? (object)DBNull.Value : textBoxQualification.Text);
-                            cmd.Parameters.AddWithValue("@Salary", string.IsNullOrWhiteSpace(textBoxSalary.Text) ? (object)DBNull.Value : Convert.ToInt32(textBoxSalary.Text));
-                            cmd.Parameters.AddWithValue("@FillDate", dateTimePickerFillDate.Value);
-                            newApplicantId = (int)cmd.ExecuteScalar();
-                        }
-                    }
-                    MessageBox.Show("Соискатель добавлен!", "Успех");
-                    LoadData();
-                }
-                catch (Exception ex)
-                {
-                    MessageBox.Show($"Ошибка: {ex.Message}", "Ошибка");
-                }
-            }
         }
 
         private void buttonCancel_Click(object sender, EventArgs e)
         {
-            this.Close();
+            ApplicantManagementForm applicantManagementForm = new ApplicantManagementForm();
+            applicantManagementForm.Show();
+            this.Hide();
         }
 
         private void ApplicantEditForm_FormClosed(object sender, FormClosedEventArgs e)
@@ -233,14 +202,6 @@ namespace УП_PR8.Forms
                 e.Handled = true;
             }
             if (e.KeyChar == '-')
-            {
-                e.Handled = true;
-            }
-        }
-
-        private void textBoxPhone_KeyPress(object sender, KeyPressEventArgs e)
-        {
-            if (!char.IsControl(e.KeyChar) && !char.IsDigit(e.KeyChar) && e.KeyChar != '+')
             {
                 e.Handled = true;
             }
